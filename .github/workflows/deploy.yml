@@ -26,7 +26,7 @@ jobs:
       - name: Build WAR file
         run: mvn clean package -DskipTests
 
-      # 4️⃣ Verify WAR file exists and get details
+      # 4️⃣ Verify WAR file exists
       - name: Verify WAR file
         run: |
           echo "=== Listing target directory ==="
@@ -37,23 +37,33 @@ jobs:
             echo "Found WAR files:"
             ls -la target/*.war
             WAR_FILE=$(ls target/*.war | head -1)
-            echo "Using WAR file: $WAR_FILE"
-            echo "WAR_FILE_NAME=$(basename $WAR_FILE)" >> $GITHUB_ENV
+            echo "WAR file: $WAR_FILE"
+            
+            # Verify it's a file, not directory
+            if [ -d "$WAR_FILE" ]; then
+              echo "ERROR: $WAR_FILE is a directory, not a file!"
+              exit 1
+            fi
+            
+            # Copy to a known location with correct name
+            cp "$WAR_FILE" ./ROOT.war
+            echo "WAR_FILE copied to ./ROOT.war"
           else
             echo "ERROR: No WAR files found in target directory"
             exit 1
           fi
 
-      # 5️⃣ Copy WAR file to EC2 with correct naming
-      - name: Copy WAR to EC2
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "target/${{ env.WAR_FILE_NAME }}"
-          target: "/tmp/ROOT.war"  # Explicitly name it ROOT.war
-          debug: true
+      # 5️⃣ Upload WAR file using curl (alternative to SCP)
+      - name: Upload WAR to EC2
+        run: |
+          # Create SSH connection to upload file
+          echo "Uploading ROOT.war to EC2..."
+          ssh -i ${{ secrets.EC2_SSH_KEY }} -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} \
+            "sudo rm -f /tmp/ROOT.war; sudo touch /tmp/ROOT.war; sudo chmod 666 /tmp/ROOT.war"
+          
+          # Use scp with explicit file handling
+          scp -i ${{ secrets.EC2_SSH_KEY }} -o StrictHostKeyChecking=no \
+            ./ROOT.war ubuntu@${{ secrets.EC2_HOST }}:/tmp/ROOT.war
 
       # 6️⃣ Verify file was copied to EC2
       - name: Verify file copied to EC2
@@ -71,6 +81,12 @@ jobs:
               echo "Found ROOT.war file in /tmp:"
               ls -la /tmp/ROOT.war
               file /tmp/ROOT.war
+              
+              # Verify it's a regular file
+              if [ ! -f "/tmp/ROOT.war" ]; then
+                echo "ERROR: /tmp/ROOT.war is not a regular file!"
+                exit 1
+              fi
             else
               echo "ERROR: /tmp/ROOT.war not found!"
               echo "Contents of /tmp:"
