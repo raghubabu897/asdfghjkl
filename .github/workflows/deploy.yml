@@ -38,21 +38,21 @@ jobs:
             ls -la target/*.war
             WAR_FILE=$(ls target/*.war | head -1)
             echo "Using WAR file: $WAR_FILE"
-            echo "WAR_FILE_PATH=$WAR_FILE" >> $GITHUB_ENV
+            echo "WAR_FILE_NAME=$(basename $WAR_FILE)" >> $GITHUB_ENV
           else
             echo "ERROR: No WAR files found in target directory"
             exit 1
           fi
 
-      # 5️⃣ Copy WAR file to EC2 with debug info
+      # 5️⃣ Copy WAR file to EC2 with correct naming
       - name: Copy WAR to EC2
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "${{ env.WAR_FILE_PATH }}"
-          target: "/tmp/"
+          source: "target/${{ env.WAR_FILE_NAME }}"
+          target: "/tmp/ROOT.war"  # Explicitly name it ROOT.war
           debug: true
 
       # 6️⃣ Verify file was copied to EC2
@@ -66,20 +66,15 @@ jobs:
             echo "=== Checking /tmp directory ==="
             ls -la /tmp/
             
-            echo "=== Looking for WAR file ==="
-            if ls /tmp/*.war 1> /dev/null 2>&1; then
-              echo "Found WAR file in /tmp:"
-              ls -la /tmp/*.war
-              WAR_FILE_IN_TMP=$(ls /tmp/*.war | head -1)
-              echo "WAR file in /tmp: $WAR_FILE_IN_TMP"
-              
-              # Rename to ROOT.war if needed
-              if [ "$WAR_FILE_IN_TMP" != "/tmp/ROOT.war" ]; then
-                echo "Renaming $WAR_FILE_IN_TMP to /tmp/ROOT.war"
-                sudo mv "$WAR_FILE_IN_TMP" /tmp/ROOT.war
-              fi
+            echo "=== Verifying ROOT.war file ==="
+            if [ -f "/tmp/ROOT.war" ]; then
+              echo "Found ROOT.war file in /tmp:"
+              ls -la /tmp/ROOT.war
+              file /tmp/ROOT.war
             else
-              echo "ERROR: No WAR file found in /tmp directory"
+              echo "ERROR: /tmp/ROOT.war not found!"
+              echo "Contents of /tmp:"
+              ls -la /tmp/
               exit 1
             fi
 
