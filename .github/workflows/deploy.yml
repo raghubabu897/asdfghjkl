@@ -36,7 +36,7 @@ jobs:
           source: "target/ROOT.war"
           target: "/tmp/ROOT.war"
 
-      # 5️⃣ Deploy WAR on Tomcat10
+      # 5️⃣ Deploy WAR on Tomcat
       - name: Deploy WAR on Tomcat
         uses: appleboy/ssh-action@master
         with:
@@ -47,7 +47,7 @@ jobs:
             echo "Stopping Tomcat..."
             sudo systemctl stop tomcat10 || true
 
-            echo "Removing old deployment (directory and WAR)..."
+            echo "Removing old deployment..."
             sudo rm -rf /var/lib/tomcat10/webapps/ROOT /var/lib/tomcat10/webapps/ROOT.war
 
             echo "Copying new WAR..."
@@ -57,14 +57,24 @@ jobs:
             sudo chown tomcat:tomcat /var/lib/tomcat10/webapps/ROOT.war
             sudo chmod 644 /var/lib/tomcat10/webapps/ROOT.war
 
+            echo "Fixing webapps permissions..."
+            sudo chown -R tomcat:tomcat /var/lib/tomcat10/webapps/
+            sudo chmod -R 755 /var/lib/tomcat10/webapps/
+
+            echo "Manually extracting WAR..."
+            sudo -u tomcat unzip -o /var/lib/tomcat10/webapps/ROOT.war -d /var/lib/tomcat10/webapps/ROOT/
+
+            echo "Setting permissions for extracted ROOT..."
+            sudo chown -R tomcat:tomcat /var/lib/tomcat10/webapps/ROOT/
+            sudo chmod -R 755 /var/lib/tomcat10/webapps/ROOT/
+
             echo "Starting Tomcat..."
             sudo systemctl start tomcat10
 
-            echo "Waiting 15 seconds for WAR to unpack..."
-            sleep 15
+            echo "Waiting for startup..."
+            sleep 30
 
-            echo "Listing deployed apps:"
-            ls -lh /var/lib/tomcat10/webapps/
-
+            echo "Verifying deployment:"
+            ls -la /var/lib/tomcat10/webapps/
             sudo systemctl status tomcat10 --no-pager
-            echo "✅ Deployment completed successfully!"
+            echo "Deployment completed successfully!"
