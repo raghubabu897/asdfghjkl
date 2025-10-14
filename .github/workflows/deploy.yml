@@ -20,5 +20,6 @@ jobs:
         username: ubuntu 
         key: ${{ secrets.EC2_SSH_KEY }} 
         source: "." 
+       exclude: ".git/*"
         target: "/var/lib/tomcat10/webapps/ROOT" 
  
