@@ -53,19 +53,26 @@ jobs:
             exit 1
           fi
 
-      # 5️⃣ Upload WAR file using curl (alternative to SCP)
+      # 5️⃣ Create SSH key file
+      - name: Create SSH key file
+        run: |
+          # Create SSH key file
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      # 6️⃣ Upload WAR file to EC2
       - name: Upload WAR to EC2
         run: |
-          # Create SSH connection to upload file
-          echo "Uploading ROOT.war to EC2..."
-          ssh -i ${{ secrets.EC2_SSH_KEY }} -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} \
+          # Prepare destination on EC2
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} \
             "sudo rm -f /tmp/ROOT.war; sudo touch /tmp/ROOT.war; sudo chmod 666 /tmp/ROOT.war"
           
-          # Use scp with explicit file handling
-          scp -i ${{ secrets.EC2_SSH_KEY }} -o StrictHostKeyChecking=no \
+          # Upload WAR file
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
             ./ROOT.war ubuntu@${{ secrets.EC2_HOST }}:/tmp/ROOT.war
 
-      # 6️⃣ Verify file was copied to EC2
+      # 7️⃣ Verify file was copied to EC2
       - name: Verify file copied to EC2
         uses: appleboy/ssh-action@master
         with:
@@ -94,7 +101,7 @@ jobs:
               exit 1
             fi
 
-      # 7️⃣ Deploy WAR on Tomcat
+      # 8️⃣ Deploy WAR on Tomcat
       - name: Deploy WAR on Tomcat
         uses: appleboy/ssh-action@master
         with:
