@@ -3,7 +3,7 @@ name: Build & Deploy Java App to EC2
 on:
   push:
     branches:
-      - master
+      - master  # <- make sure this matches your branch name
 
 jobs:
   build-and-deploy:
@@ -40,6 +40,9 @@ jobs:
         script: |
           sudo systemctl stop tomcat10 || true
           sudo rm -rf /var/lib/tomcat10/webapps/ROOT
+          sudo rm -f /var/lib/tomcat10/webapps/ROOT.war
           sudo mv /tmp/ROOT.war /var/lib/tomcat10/webapps/
+          sudo chmod 755 /var/lib/tomcat10/webapps/ROOT.war
+          sudo chown -R tomcat:tomcat /var/lib/tomcat10/webapps/ROOT.war
           sudo systemctl start tomcat10
           sudo systemctl status tomcat10 --no-pager
