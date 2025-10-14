@@ -1,24 +1,45 @@
-name: Deploy Java App to EC2 
- 
-on: 
-  push: 
-    branches: 
-      - master 
- 
-jobs: 
-  deploy: 
-    runs-on: ubuntu-latest 
- 
-    steps: 
-    - name: Checkout Code 
-      uses: actions/checkout@v3 
- 
-    - name: Copy files to EC2 
-      uses: appleboy/scp-action@master 
-      with: 
-        host: ${{ secrets.EC2_HOST }} 
-        username: ubuntu 
-        key: ${{ secrets.EC2_SSH_KEY }} 
-        source: "." 
-        target: "/var/lib/tomcat10/webapps/ROOT" 
- 
+name: Build & Deploy Java App to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - name: Build WAR
+      run: mvn -B -DskipTests clean package
+
+    - name: Copy WAR to EC2
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "target/ROOT.war"
+        target: "/tmp/"
+
+    - name: Deploy WAR and Restart Tomcat
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          sudo systemctl stop tomcat10 || true
+          sudo rm -rf /var/lib/tomcat10/webapps/ROOT
+          sudo mv /tmp/ROOT.war /var/lib/tomcat10/webapps/
+          sudo systemctl start tomcat10
+          sudo systemctl status tomcat10 --no-pager
