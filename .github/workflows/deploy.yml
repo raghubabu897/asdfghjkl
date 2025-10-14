@@ -61,14 +61,14 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      # 6️⃣ Upload WAR file to EC2
+      # 6️⃣ Clean up EC2 and upload WAR file
       - name: Upload WAR to EC2
         run: |
-          # Prepare destination on EC2
+          echo "=== Cleaning up EC2 ==="
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} \
-            "sudo rm -f /tmp/ROOT.war; sudo touch /tmp/ROOT.war; sudo chmod 666 /tmp/ROOT.war"
+            "sudo rm -rf /tmp/ROOT.war; sudo touch /tmp/ROOT.war; sudo chmod 666 /tmp/ROOT.war"
           
-          # Upload WAR file
+          echo "=== Uploading WAR file ==="
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
             ./ROOT.war ubuntu@${{ secrets.EC2_HOST }}:/tmp/ROOT.war
 
