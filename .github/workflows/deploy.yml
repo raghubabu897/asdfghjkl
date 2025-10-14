@@ -10,15 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # 1️⃣ Checkout the code
     - name: Checkout Code
       uses: actions/checkout@v3
 
+    # 2️⃣ Prepare deployment folder (exclude .git)
+    - name: Prepare deployment folder
+      run: |
+        mkdir deploy
+        rsync -av --exclude='.git' ./ deploy/
+
+    # 3️⃣ Copy files to EC2
     - name: Copy files to EC2
       uses: appleboy/scp-action@master
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "."
-        exclude: ".git/*"
+        source: "deploy/"
         target: "/var/lib/tomcat10/webapps/ROOT"
+        overwrite: true
+
+    # 4️⃣ Optional: Restart Tomcat (if you want auto-deploy)
+    - name: Restart Tomcat
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          sudo systemctl stop tomcat10
+          sudo systemctl start tomcat10
