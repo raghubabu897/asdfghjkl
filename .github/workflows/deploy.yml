@@ -3,7 +3,7 @@ name: CI/CD Deploy Java App to Tomcat10 on EC2
 on:
   push:
     branches:
-      - master  # change if your main branch is different
+      - master
 
 jobs:
   build-and-deploy:
@@ -49,20 +49,18 @@ jobs:
             echo "Removing old ROOT app..."
             sudo rm -rf /var/lib/tomcat10/webapps/ROOT /var/lib/tomcat10/webapps/ROOT.war
 
-            echo "Copying new WAR..."
+            echo "Moving new WAR..."
             sudo mv /tmp/ROOT.war /var/lib/tomcat10/webapps/
-
-            echo "Setting correct permissions..."
             sudo chown tomcat:tomcat /var/lib/tomcat10/webapps/ROOT.war
             sudo chmod 644 /var/lib/tomcat10/webapps/ROOT.war
 
             echo "Starting Tomcat..."
             sudo systemctl start tomcat10
 
-            echo "Waiting 15 seconds for WAR to unpack..."
-            sleep 15
+            echo "Waiting 20 seconds for WAR to unpack..."
+            sleep 20
 
-            echo "Checking deployed apps..."
+            echo "Deployed apps:"
             ls -lh /var/lib/tomcat10/webapps/
 
             sudo systemctl status tomcat10 --no-pager
