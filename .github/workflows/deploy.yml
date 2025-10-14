@@ -26,26 +26,64 @@ jobs:
       - name: Build WAR file
         run: mvn clean package -DskipTests
 
-      # 4️⃣ Verify WAR file exists
+      # 4️⃣ Verify WAR file exists and get details
       - name: Verify WAR file
         run: |
-          if [ ! -f "target/ROOT.war" ]; then
-            echo "ERROR: ROOT.war not found in target directory"
+          echo "=== Listing target directory ==="
+          ls -la target/
+          
+          echo "=== Checking for WAR files ==="
+          if ls target/*.war 1> /dev/null 2>&1; then
+            echo "Found WAR files:"
+            ls -la target/*.war
+            WAR_FILE=$(ls target/*.war | head -1)
+            echo "Using WAR file: $WAR_FILE"
+            echo "WAR_FILE_PATH=$WAR_FILE" >> $GITHUB_ENV
+          else
+            echo "ERROR: No WAR files found in target directory"
             exit 1
           fi
-          ls -lh target/ROOT.war
 
-      # 5️⃣ Copy WAR file to EC2
+      # 5️⃣ Copy WAR file to EC2 with debug info
       - name: Copy WAR to EC2
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "target/ROOT.war"
-          target: "/tmp/ROOT.war"
+          source: "${{ env.WAR_FILE_PATH }}"
+          target: "/tmp/"
+          debug: true
 
-      # 6️⃣ Deploy WAR on Tomcat
+      # 6️⃣ Verify file was copied to EC2
+      - name: Verify file copied to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "=== Checking /tmp directory ==="
+            ls -la /tmp/
+            
+            echo "=== Looking for WAR file ==="
+            if ls /tmp/*.war 1> /dev/null 2>&1; then
+              echo "Found WAR file in /tmp:"
+              ls -la /tmp/*.war
+              WAR_FILE_IN_TMP=$(ls /tmp/*.war | head -1)
+              echo "WAR file in /tmp: $WAR_FILE_IN_TMP"
+              
+              # Rename to ROOT.war if needed
+              if [ "$WAR_FILE_IN_TMP" != "/tmp/ROOT.war" ]; then
+                echo "Renaming $WAR_FILE_IN_TMP to /tmp/ROOT.war"
+                sudo mv "$WAR_FILE_IN_TMP" /tmp/ROOT.war
+              fi
+            else
+              echo "ERROR: No WAR file found in /tmp directory"
+              exit 1
+            fi
+
+      # 7️⃣ Deploy WAR on Tomcat
       - name: Deploy WAR on Tomcat
         uses: appleboy/ssh-action@master
         with:
@@ -65,9 +103,13 @@ jobs:
             echo "3. Verifying source WAR file exists..."
             if [ ! -f "/tmp/ROOT.war" ]; then
               echo "ERROR: /tmp/ROOT.war not found!"
+              echo "Contents of /tmp:"
+              ls -la /tmp/
               exit 1
             fi
+            echo "WAR file details:"
             ls -lh /tmp/ROOT.war
+            file /tmp/ROOT.war
             
             echo "4. Copying WAR to webapps directory..."
             sudo cp /tmp/ROOT.war /var/lib/tomcat10/webapps/
