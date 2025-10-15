@@ -156,7 +156,7 @@
     <div class="container">
         <h2>Student Management</h2>
         <button class="btn btn-primary" onclick="openModal('add')">Add New Student</button>
-        <a href="welcome.jsp" class="btn btn-danger">Back to Welcome</a>
+        <a href="index.jsp" class="btn btn-danger">Back to Welcome</a>
 
         <!-- Error Message -->
         <c:if test="${not empty errorMessage}">
